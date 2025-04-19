@@ -1,26 +1,9 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "main.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "static/**",
-      "use": "@vercel/static"
-    }
+    { "src": "main.py", "use": "@vercel/python" }
   ],
   "routes": [
-    {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/main.py"
-    }
-  ],
-  "env": {
-    "MONGODB_URI": "mongodb+srv://viga:viga@cluster0.bael7c5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-  }
+    { "src": "/(.*)", "dest": "main.py" }
+  ]
 }
