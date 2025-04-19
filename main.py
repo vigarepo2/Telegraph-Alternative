@@ -1,5 +1,4 @@
 from flask import Flask, render_template_string, request
-import requests
 import markdown
 from html_telegraph_poster import TelegraphPoster
 
@@ -146,33 +145,20 @@ def index():
         # Convert Markdown to HTML
         html = markdown.markdown(markdown_text, extensions=['extra', 'codehilite', 'tables', 'nl2br'])
 
-        # Convert HTML to Telegraph Node format
+        # Use html-telegraph-poster to publish
         try:
-            poster = TelegraphPoster()
-            content_nodes = poster.parse_html(html)
+            t = TelegraphPoster(access_token=token, use_api=True)
+            post_result = t.post(
+                title=title,
+                author=author,
+                text=html,
+                author_url=author_url
+            )
+            result = post_result.get('url')
+            if not result:
+                error = "Telegraph API error: " + str(post_result)
         except Exception as ex:
-            error = "Failed to convert HTML to Telegraph format: " + str(ex)
-            return render_template_string(HTML_TEMPLATE, error=error, result=result, request=request)
-
-        # Prepare API payload
-        api_url = "https://api.telegra.ph/createPage"
-        payload = {
-            "access_token": token,
-            "title": title,
-            "author_name": author,
-            "author_url": author_url,
-            "content": content_nodes,
-            "return_content": False
-        }
-        try:
-            resp = requests.post(api_url, json=payload, timeout=15)
-            data = resp.json()
-            if data.get("ok"):
-                result = "https://telegra.ph/" + data["result"]["path"]
-            else:
-                error = "Telegraph API error: " + data.get("error", "Unknown error")
-        except Exception as ex:
-            error = "Network or API error: " + str(ex)
+            error = "Telegraph API error: " + str(ex)
 
     return render_template_string(HTML_TEMPLATE, error=error, result=result, request=request)
 
