@@ -1,8 +1,5 @@
 flask
 pymongo
-python-dotenv
 dnspython
-flask-cors
-markdown
 bleach
 gunicorn
