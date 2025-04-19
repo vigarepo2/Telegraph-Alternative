@@ -1,7 +1,7 @@
-from flask import Flask, render_template_string, request, redirect, url_for
+from flask import Flask, render_template_string, request
 import requests
 import markdown
-import os
+from html_telegraph_poster import TelegraphPoster
 
 app = Flask(__name__)
 
@@ -146,14 +146,22 @@ def index():
         # Convert Markdown to HTML
         html = markdown.markdown(markdown_text, extensions=['extra', 'codehilite', 'tables', 'nl2br'])
 
-        # Prepare content for Telegraph API (as a list of nodes, but Telegraph accepts HTML string too)
+        # Convert HTML to Telegraph Node format
+        try:
+            poster = TelegraphPoster()
+            content_nodes = poster.parse_html(html)
+        except Exception as ex:
+            error = "Failed to convert HTML to Telegraph format: " + str(ex)
+            return render_template_string(HTML_TEMPLATE, error=error, result=result, request=request)
+
+        # Prepare API payload
         api_url = "https://api.telegra.ph/createPage"
         payload = {
             "access_token": token,
             "title": title,
             "author_name": author,
             "author_url": author_url,
-            "content": html,
+            "content": content_nodes,
             "return_content": False
         }
         try:
