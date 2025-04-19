@@ -1,4 +1,5 @@
-flask
-html-telegraph-poster
+Flask
 requests
 markdown
+html-telegraph-poster
+lxml_html_clean
