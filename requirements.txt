@@ -1,4 +1,5 @@
 flask
+Flask-Cors
 pymongo
 dnspython
 bleach
