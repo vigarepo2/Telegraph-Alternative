@@ -1,23 +1,16 @@
 import os
 import json
 import datetime
-from flask import Flask, request, render_template, jsonify, redirect, url_for
-from flask_cors import CORS
+from flask import Flask, request, render_template, jsonify, redirect, url_for, send_from_directory
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-from dotenv import load_dotenv
 import bleach
-import markdown
-
-# Load environment variables
-load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)
 
-# Configure MongoDB connection
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb+srv://viga:viga@cluster0.bael7c5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+# Configure MongoDB connection with your provided URL
+MONGODB_URI = "mongodb+srv://viga:viga@cluster0.bael7c5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 client = MongoClient(MONGODB_URI)
 db = client.get_database("editor_db")
 documents = db.documents
@@ -171,6 +164,11 @@ def delete_document(document_id):
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+# Static file handling for Vercel
+@app.route('/static/<path:path>')
+def serve_static(path):
+    return send_from_directory('static', path)
+
 # Error handlers
 @app.errorhandler(404)
 def page_not_found(e):
@@ -180,20 +178,23 @@ def page_not_found(e):
 def server_error(e):
     return render_template('500.html'), 500
 
-# Create folder structure if it doesn't exist
-for folder in ['templates', 'static', 'static/css', 'static/js', 'static/img']:
-    os.makedirs(folder, exist_ok=True)
+# Create templates directory and files
+import os
 
-# Create necessary template files
-with open('templates/index.html', 'w') as f:
-    f.write('''
+def create_file(path, content):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+# Create template files
+create_file('templates/index.html', '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Text Editor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
@@ -267,20 +268,19 @@ with open('templates/index.html', 'w') as f:
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/documents.js') }}"></script>
+    <script src="/static/js/documents.js"></script>
 </body>
 </html>
 ''')
 
-with open('templates/editor.html', 'w') as f:
-    f.write('''
+create_file('templates/editor.html', '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document Editor | Advanced Text Editor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Quill.js Rich Text Editor -->
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
@@ -401,7 +401,7 @@ with open('templates/editor.html', 'w') as f:
 
     <!-- Quill.js library -->
     <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
-    <script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+    <script src="/static/js/editor.js"></script>
     {% if document_id %}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -413,15 +413,14 @@ with open('templates/editor.html', 'w') as f:
 </html>
 ''')
 
-with open('templates/view.html', 'w') as f:
-    f.write('''
+create_file('templates/view.html', '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>View Document | Advanced Text Editor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Quill.js styles for rendering -->
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
@@ -468,7 +467,7 @@ with open('templates/view.html', 'w') as f:
         </footer>
     </div>
 
-    <script src="{{ url_for('static', filename='js/view.js') }}"></script>
+    <script src="/static/js/view.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             loadDocument('{{ document_id }}');
@@ -478,15 +477,14 @@ with open('templates/view.html', 'w') as f:
 </html>
 ''')
 
-with open('templates/404.html', 'w') as f:
-    f.write('''
+create_file('templates/404.html', '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Page Not Found | Advanced Text Editor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
@@ -525,56 +523,7 @@ with open('templates/404.html', 'w') as f:
 </html>
 ''')
 
-with open('templates/500.html', 'w') as f:
-    f.write('''
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Server Error | Advanced Text Editor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-</head>
-<body>
-    <div class="app-container">
-        <header class="app-header">
-            <div class="header-content">
-                <div class="logo">
-                    <h1>Advanced Text Editor</h1>
-                </div>
-                <div class="header-actions">
-                    <a href="/" class="primary-button">
-                        <i class="fas fa-home"></i> Back to Home
-                    </a>
-                </div>
-            </div>
-        </header>
-
-        <main class="main-content">
-            <div class="error-container">
-                <div class="error-code">500</div>
-                <h2 class="error-title">Server Error</h2>
-                <p class="error-message">Something went wrong on our servers. We're working to fix the issue.</p>
-                <a href="/" class="primary-button">
-                    <i class="fas fa-home"></i> Go to Homepage
-                </a>
-            </div>
-        </main>
-
-        <footer class="app-footer">
-            <div class="footer-content">
-                <p>&copy; 2025 Advanced Text Editor. All rights reserved.</p>
-            </div>
-        </footer>
-    </div>
-</body>
-</html>
-''')
-
-# Create static files
-with open('static/css/styles.css', 'w') as f:
-    f.write('''
+create_file('static/css/styles.css', '''
 /* Base Styles and Variables */
 :root {
     --primary-color: #4a72da;
@@ -1129,6 +1078,18 @@ input:focus, textarea:focus {
     margin-bottom: 2rem;
 }
 
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-secondary);
+}
+
+.empty-state p {
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
     .header-content {
@@ -1162,8 +1123,7 @@ input:focus, textarea:focus {
 }
 ''')
 
-with open('static/js/documents.js', 'w') as f:
-    f.write('''
+create_file('static/js/documents.js', '''
 document.addEventListener('DOMContentLoaded', () => {
     const documentsList = document.getElementById('documents-list');
     const documentCardTemplate = document.getElementById('document-card-template');
@@ -1240,6 +1200,7 @@ document.addEventListener('DOMContentLoaded', () => {
             editButton.href = `/editor/${doc.id}`;
             
             const deleteButton = docCard.querySelector('.delete-button');
+            deleteButton.setAttribute('data-id', doc.id);
             deleteButton.addEventListener('click', () => openDeleteModal(doc));
             
             documentsList.appendChild(docCard);
@@ -1282,24 +1243,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function showSuccessMessage(message) {
-        console.log('Success:', message);
-        // In a full implementation, you would show a notification/toast here
+        const notification = document.createElement('div');
+        notification.className = 'notification success';
+        notification.innerHTML = `
+            <span>${message}</span>
+            <button onclick="this.parentNode.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
     }
     
     function showErrorMessage(message) {
-        console.error('Error:', message);
-        // In a full implementation, you would show an error notification/toast here
+        const notification = document.createElement('div');
+        notification.className = 'notification error';
+        notification.innerHTML = `
+            <span>${message}</span>
+            <button onclick="this.parentNode.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
     }
 });
 ''')
 
-with open('static/js/editor.js', 'w') as f:
-    f.write('''
+create_file('static/js/editor.js', '''
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize variables
     let currentDocumentId = null;
     let documentTags = [];
     let isEditingExisting = false;
+    let editorInitialized = false;
     
     // DOM elements
     const titleInput = document.getElementById('document-title');
@@ -1320,6 +1303,8 @@ document.addEventListener('DOMContentLoaded', () => {
         placeholder: 'Start writing your document...',
     });
     
+    editorInitialized = true;
+    
     // Event listeners
     saveButton.addEventListener('click', saveDocument);
     discardButton.addEventListener('click', discardChanges);
@@ -1327,14 +1312,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Set up auto-save interval (every 30 seconds)
     let autoSaveInterval = setInterval(() => {
-        if (hasUnsavedChanges()) {
+        if (hasUnsavedChanges() && isEditingExisting) {
             autoSave();
         }
     }, 30000);
     
     // Functions
     function hasUnsavedChanges() {
-        // Check if there's content to save and if the title isn't empty
         return quill.getText().trim().length > 0 && titleInput.value.trim().length > 0;
     }
     
@@ -1467,13 +1451,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function showNotification(message, type) {
         notificationMessage.textContent = message;
         notification.className = `notification ${type}`;
+        notification.classList.remove('hidden');
         
         // Hide notification after 5 seconds
         setTimeout(hideNotification, 5000);
     }
     
     function hideNotification() {
-        notification.className = 'notification hidden';
+        notification.classList.add('hidden');
     }
     
     // Function to load a document by ID
@@ -1510,13 +1495,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
+    // Parse document ID from URL if we're editing an existing document
+    const pathname = window.location.pathname;
+    const match = pathname.match(/\/editor\/([a-f0-9]+)$/i);
+    if (match && match[1]) {
+        // Wait for editor to be initialized
+        if (editorInitialized) {
+            loadDocument(match[1]);
+        } else {
+            const checkInterval = setInterval(() => {
+                if (editorInitialized) {
+                    clearInterval(checkInterval);
+                    loadDocument(match[1]);
+                }
+            }, 100);
+        }
+    }
+    
     // Cleanup on page unload
     window.addEventListener('beforeunload', (event) => {
         // Cancel the auto-save interval
         clearInterval(autoSaveInterval);
         
         // Show warning if there are unsaved changes
-        if (hasUnsavedChanges()) {
+        if (hasUnsavedChanges() && !isEditingExisting) {
             event.preventDefault();
             event.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
             return event.returnValue;
@@ -1525,8 +1527,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 ''')
 
-with open('static/js/view.js', 'w') as f:
-    f.write('''
+create_file('static/js/view.js', '''
 document.addEventListener('DOMContentLoaded', () => {
     // DOM elements
     const titleElement = document.getElementById('document-title-display');
@@ -1564,7 +1565,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         tagsContainer.appendChild(tagElement);
                     });
                 } else {
-                    tagsContainer.innerHTML = '';
+                    tagsContainer.innerHTML = '<span class="tag">No tags</span>';
                 }
                 
                 // Set document content
@@ -1589,37 +1590,20 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
     }
+    
+    // Parse document ID from URL
+    const pathname = window.location.pathname;
+    const match = pathname.match(/\/view\/([a-f0-9]+)$/i);
+    if (match && match[1]) {
+        loadDocument(match[1]);
+    } else {
+        showError('Invalid document ID');
+    }
 });
 ''')
 
-# Create vercel.json configuration
-with open('vercel.json', 'w') as f:
-    f.write('''
-{
-  "version": 2,
-  "builds": [
-    {
-      "src": "main.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "static/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "main.py"
-    }
-  ]
-}
-''')
-
-# Main function to run the app
+# Use Gunicorn when deployed to production
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Use this for local development
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
